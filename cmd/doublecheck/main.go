@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/jackc/doublecheck"
 	"github.com/jackc/pgx"
@@ -41,18 +42,29 @@ func main() {
 	}
 	addConfigFlagsToCommand(cmdList)
 
+	cmdCheck := &cobra.Command{
+		Use:   "check",
+		Short: "Checks doublecheck views for errors",
+		Run:   Check,
+	}
+	addConfigFlagsToCommand(cmdCheck)
+
 	rootCmd := &cobra.Command{Use: "doublecheck", Short: "doublecheck - data validator"}
 	rootCmd.AddCommand(cmdVersion)
 	rootCmd.AddCommand(cmdList)
+	rootCmd.AddCommand(cmdCheck)
 	rootCmd.Execute()
 }
 
-func extractConfig() (config pgx.ConnPoolConfig, err error) {
-	config.ConnConfig, err = pgx.ParseEnvLibpq()
+func extractConfig() (pgx.ConnConfig, error) {
+	config, err := pgx.ParseEnvLibpq()
 	if err != nil {
 		return config, err
 	}
 
+	if config.Host == "" {
+		config.Host = findSocketPath()
+	}
 	if config.Host == "" {
 		config.Host = "localhost"
 	}
@@ -65,9 +77,23 @@ func extractConfig() (config pgx.ConnPoolConfig, err error) {
 		config.Database = config.User
 	}
 
-	config.MaxConnections = 10
-
 	return config, nil
+}
+
+func findSocketPath() string {
+	possiblePaths := []string{
+		"/tmp",                // Standard location and homebrew
+		"/var/run/postgresql", // Debian / Ubuntu
+	}
+
+	for _, path := range possiblePaths {
+		matches, _ := filepath.Glob(fmt.Sprintf("%s/.s.PGSQL*", path))
+		if len(matches) > 0 {
+			return path
+		}
+	}
+
+	return ""
 }
 
 func addConfigFlagsToCommand(cmd *cobra.Command) {
@@ -76,7 +102,7 @@ func addConfigFlagsToCommand(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&cliOptions.user, "user", "", "", "database user")
 	cmd.Flags().StringVarP(&cliOptions.password, "password", "", "", "database password")
 	cmd.Flags().StringVarP(&cliOptions.database, "database", "", "", "database name")
-	cmd.Flags().StringVarP(&cliOptions.schema, "schema", "", "doublecheck", "version table name")
+	cmd.Flags().StringVarP(&cliOptions.schema, "schema", "", "doublecheck", "schema that contains doublecheck views")
 }
 
 func List(cmd *cobra.Command, args []string) {
@@ -104,9 +130,43 @@ func List(cmd *cobra.Command, args []string) {
 	}
 }
 
+func Check(cmd *cobra.Command, args []string) {
+	config, err := LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config:\n  %v\n", err)
+		os.Exit(1)
+	}
+
+	pool, err := pgx.NewConnPool(config.ConnPoolConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to PostgreSQL:\n  %v\n", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	dc, err := doublecheck.New(&doublecheck.Config{ConnPool: pool, SchemaName: config.Schema})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to initialize doublecheck:\n  %v\n", err)
+		os.Exit(1)
+	}
+
+	result, err := dc.Check(dc.Views())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Check failed:\n  %v\n", err)
+		os.Exit(1)
+	}
+
+	formatter := doublecheck.NewJSONFormatter(os.Stdout)
+	err = formatter.Format(result)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to format results:\n  %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func LoadConfig() (*Config, error) {
 	config := &Config{}
-	if connConfig, err := pgx.ParseEnvLibpq(); err == nil {
+	if connConfig, err := extractConfig(); err == nil {
 		config.ConnPoolConfig.ConnConfig = connConfig
 	} else {
 		return nil, err

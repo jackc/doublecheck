@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -18,9 +19,20 @@ type DoubleCheck struct {
 	pool       *pgx.ConnPool
 }
 
-type Result struct {
-	ViewName string
-	Rows     []map[string]interface{}
+type CheckResult struct {
+	Database    string        `json:"database"`
+	Schema      string        `json:"schema"`
+	User        string        `json:"user"`
+	StartTime   time.Time     `json:"start_time"`
+	Duration    time.Duration `json:"duration"`
+	ViewResults []ViewResult  `json:"view_results"`
+}
+
+type ViewResult struct {
+	Name      string                   `json:"name"`
+	StartTime time.Time                `json:"start_time"`
+	Duration  time.Duration            `json:"duration"`
+	Rows      []map[string]interface{} `json:"rows"`
 }
 
 func New(config *Config) (*DoubleCheck, error) {
@@ -79,7 +91,40 @@ func (dc *DoubleCheck) Views() []string {
 	return dc.views
 }
 
-func (dc *DoubleCheck) Check(viewName string) (*Result, error) {
+func (dc *DoubleCheck) Check(viewNames []string) (*CheckResult, error) {
+	var database, user string
+	if err := dc.pool.QueryRow("select current_database(), current_user").Scan(&database, &user); err != nil {
+		return nil, err
+	}
+
+	cr := &CheckResult{
+		Database:  database,
+		Schema:    dc.SchemaName(),
+		User:      user,
+		StartTime: time.Now(),
+	}
+
+	cr.ViewResults = make([]ViewResult, 0, len(viewNames))
+	for _, view := range viewNames {
+		vr, err := dc.checkView(view)
+		if err != nil {
+			return nil, err
+		}
+		cr.ViewResults = append(cr.ViewResults, *vr)
+	}
+
+	cr.Duration = time.Now().Sub(cr.StartTime)
+
+	return cr, nil
+}
+
+func (dc *DoubleCheck) checkView(viewName string) (*ViewResult, error) {
+	vr := &ViewResult{
+		Name:      viewName,
+		StartTime: time.Now(),
+		Rows:      []map[string]interface{}{},
+	}
+
 	sql := fmt.Sprintf(
 		`select row_to_json(t) from %s.%s t`,
 		quoteIdentifier(dc.SchemaName()),
@@ -92,21 +137,22 @@ func (dc *DoubleCheck) Check(viewName string) (*Result, error) {
 	}
 	defer rows.Close()
 
-	result := &Result{ViewName: viewName, Rows: []map[string]interface{}{}}
 	for rows.Next() {
 		var rowJSON map[string]interface{}
 		err = rows.Scan(&rowJSON)
 		if err != nil {
 			return nil, err
 		}
-		result.Rows = append(result.Rows, rowJSON)
+		vr.Rows = append(vr.Rows, rowJSON)
 	}
 
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
 
-	return result, nil
+	vr.Duration = time.Now().Sub(vr.StartTime)
+
+	return vr, nil
 }
 
 func quoteIdentifier(input string) string {

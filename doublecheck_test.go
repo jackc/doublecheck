@@ -125,17 +125,18 @@ func TestDoubleCheckCheck(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		result, err := dc.Check(tt.viewName)
+		result, err := dc.Check([]string{tt.viewName})
 		if err != nil {
 			t.Errorf(`%d. %s: %v`, i, tt.testName, err)
 			continue
 		}
-		if result.ViewName != tt.viewName {
-			t.Errorf(`%d. %s: Expected result.ViewName to be "%s", but it was "%s"`, i, tt.testName, tt.viewName, result.ViewName)
+
+		vr := result.ViewResults[0]
+		if vr.Name != tt.viewName {
+			t.Errorf(`%d. %s: Expected result.ViewName to be "%s", but it was "%s"`, i, tt.testName, tt.viewName, vr.Name)
 		}
-		if !reflect.DeepEqual(result.Rows, tt.rows) {
-			t.Errorf(`%d. %s: Expected result.Rows to be %#v, but it was %#v`, i, tt.testName, tt.rows, result.Rows)
+		if !reflect.DeepEqual(vr.Rows, tt.rows) {
+			t.Errorf(`%d. %s: Expected result.Rows to be %#v, but it was %#v`, i, tt.testName, tt.rows, vr.Rows)
 		}
 	}
-
 }
