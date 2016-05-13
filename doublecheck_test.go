@@ -66,7 +66,12 @@ func extractConfig() (config pgx.ConnPoolConfig, err error) {
 }
 
 func findSocketPath() string {
-	for _, path := range []string{"/var/run/postgresql"} {
+	possiblePaths := []string{
+		"/tmp",                // Standard location and homebrew
+		"/var/run/postgresql", // Debian / Ubuntu
+	}
+
+	for _, path := range possiblePaths {
 		matches, _ := filepath.Glob(fmt.Sprintf("%s/.s.PGSQL*", path))
 		if len(matches) > 0 {
 			return path
