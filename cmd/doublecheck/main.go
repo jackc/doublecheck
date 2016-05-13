@@ -24,6 +24,8 @@ var cliOptions struct {
 	password string
 	database string
 	schema   string
+
+	quiet bool
 }
 
 func main() {
@@ -48,6 +50,7 @@ func main() {
 		Run:   Check,
 	}
 	addConfigFlagsToCommand(cmdCheck)
+	cmdCheck.Flags().BoolVarP(&cliOptions.quiet, "quiet", "", false, "only print output if error found")
 
 	rootCmd := &cobra.Command{Use: "doublecheck", Short: "doublecheck - data validator"}
 	rootCmd.AddCommand(cmdVersion)
@@ -154,6 +157,10 @@ func Check(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Check failed:\n  %v\n", err)
 		os.Exit(1)
+	}
+
+	if cliOptions.quiet && !result.ErrorDetected {
+		return
 	}
 
 	formatter := doublecheck.NewJSONFormatter(os.Stdout)

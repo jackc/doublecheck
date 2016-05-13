@@ -20,12 +20,13 @@ type DoubleCheck struct {
 }
 
 type CheckResult struct {
-	Database    string        `json:"database"`
-	Schema      string        `json:"schema"`
-	User        string        `json:"user"`
-	StartTime   time.Time     `json:"start_time"`
-	Duration    time.Duration `json:"duration"`
-	ViewResults []ViewResult  `json:"view_results"`
+	Database      string        `json:"database"`
+	Schema        string        `json:"schema"`
+	User          string        `json:"user"`
+	StartTime     time.Time     `json:"start_time"`
+	Duration      time.Duration `json:"duration"`
+	ErrorDetected bool          `json:"error_detected"`
+	ViewResults   []ViewResult  `json:"view_results"`
 }
 
 type ViewResult struct {
@@ -111,6 +112,12 @@ func (dc *DoubleCheck) Check(viewNames []string) (*CheckResult, error) {
 			return nil, err
 		}
 		cr.ViewResults = append(cr.ViewResults, *vr)
+	}
+
+	for _, vr := range cr.ViewResults {
+		if len(vr.Rows) > 0 {
+			cr.ErrorDetected = true
+		}
 	}
 
 	cr.Duration = time.Now().Sub(cr.StartTime)
