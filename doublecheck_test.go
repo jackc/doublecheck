@@ -82,8 +82,55 @@ func TestDoubleCheckViews(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedViews := []string{"with_multiple_errors", "without_errors"}
+	expectedViews := []string{"syntax error", "with_multiple_errors", "without_errors"}
 	if !reflect.DeepEqual(dc.Views(), expectedViews) {
 		t.Fatalf("Expected Views() to return %v, but got %v", expectedViews, dc.Views())
 	}
+}
+
+func TestDoubleCheckCheck(t *testing.T) {
+	dc, err := doublecheck.New(&doublecheck.Config{ConnPool: pool})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		testName string
+		viewName string
+		rows     []map[string]interface{}
+	}{
+		{
+			testName: "Special character view name",
+			viewName: "syntax error",
+			rows:     []map[string]interface{}{},
+		},
+		{
+			testName: "No errors",
+			viewName: "without_errors",
+			rows:     []map[string]interface{}{},
+		},
+		{
+			testName: "With multiple errors",
+			viewName: "with_multiple_errors",
+			rows: []map[string]interface{}{
+				map[string]interface{}{"id": float64(7), "error_message": "something went wrong"},
+				map[string]interface{}{"id": float64(42), "error_message": "something else went wrong"},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		result, err := dc.Check(tt.viewName)
+		if err != nil {
+			t.Errorf(`%d. %s: %v`, i, tt.testName, err)
+			continue
+		}
+		if result.ViewName != tt.viewName {
+			t.Errorf(`%d. %s: Expected result.ViewName to be "%s", but it was "%s"`, i, tt.testName, tt.viewName, result.ViewName)
+		}
+		if !reflect.DeepEqual(result.Rows, tt.rows) {
+			t.Errorf(`%d. %s: Expected result.Rows to be %#v, but it was %#v`, i, tt.testName, tt.rows, result.Rows)
+		}
+	}
+
 }

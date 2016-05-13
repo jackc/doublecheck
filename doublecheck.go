@@ -2,7 +2,9 @@ package doublecheck
 
 import (
 	"errors"
+	"fmt"
 	"github.com/jackc/pgx"
+	"strings"
 )
 
 type Config struct {
@@ -14,6 +16,11 @@ type DoubleCheck struct {
 	schemaName string
 	views      []string
 	pool       *pgx.ConnPool
+}
+
+type Result struct {
+	ViewName string
+	Rows     []map[string]interface{}
 }
 
 func New(config *Config) (*DoubleCheck, error) {
@@ -70,4 +77,38 @@ func (dc *DoubleCheck) SchemaName() string {
 
 func (dc *DoubleCheck) Views() []string {
 	return dc.views
+}
+
+func (dc *DoubleCheck) Check(viewName string) (*Result, error) {
+	sql := fmt.Sprintf(
+		`select row_to_json(t) from %s.%s t`,
+		quoteIdentifier(dc.SchemaName()),
+		quoteIdentifier(viewName),
+	)
+
+	rows, err := dc.pool.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := &Result{ViewName: viewName, Rows: []map[string]interface{}{}}
+	for rows.Next() {
+		var rowJSON map[string]interface{}
+		err = rows.Scan(&rowJSON)
+		if err != nil {
+			return nil, err
+		}
+		result.Rows = append(result.Rows, rowJSON)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	return result, nil
+}
+
+func quoteIdentifier(input string) string {
+	return `"` + strings.Replace(input, `"`, `""`, -1) + `"`
 }
