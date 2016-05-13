@@ -67,7 +67,7 @@ func extractConfig() (config pgx.ConnPoolConfig, err error) {
 	return config, nil
 }
 
-type Validator struct {
+type  struct {
 	schemaName      string
 	validationViews []string
 	pool            *pgx.ConnPool
