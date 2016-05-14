@@ -22,15 +22,40 @@ Or install it yourself as:
 
 ## Usage
 
+You can check for errors manually at any time.
+
 ```ruby
 doublecheck = DoublecheckView::Doublecheck.new
 check_result = doublecheck.check
-unless check_result.valid?
-  puts check_result.errors
-end
+assert check_result.valid?, check_result.errors
 ```
 
-At the
+However, the preferred approach is to run doublecheck after every test that uses
+the database.
+
+```ruby
+# Inside a MiniTest or ActiveSupport::TestCase class body
+
+  def before_teardown
+    doublecheck = DoublecheckView::Doublecheck.new
+    check_result = doublecheck.check
+    assert check_result.valid?, check_result.errors
+    super
+  end
+```
+
+Or for RSpec:
+
+```ruby
+RSpec.configure do |config|
+  # ...
+  config.before(:each) do
+    doublecheck = DoublecheckView::Doublecheck.new
+    check_result = doublecheck.check
+    expect(check_result).to be_valid, "doublecheck views: #{check_result.errors}"
+  end
+end
+```
 
 ## Contributing
 
