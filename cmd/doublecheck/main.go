@@ -15,6 +15,7 @@ const VERSION = "0.0.1"
 type Config struct {
 	ConnPoolConfig pgx.ConnPoolConfig
 	Schema         string
+	Quiet          bool
 }
 
 var cliOptions struct {
@@ -159,7 +160,7 @@ func Check(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if cliOptions.quiet && !result.ErrorDetected {
+	if config.Quiet && !result.ErrorDetected {
 		return
 	}
 
@@ -180,6 +181,8 @@ func LoadConfig() (*Config, error) {
 	}
 
 	appendConfigFromCLIArgs(config)
+
+	config.Quiet = cliOptions.quiet
 
 	return config, nil
 }
