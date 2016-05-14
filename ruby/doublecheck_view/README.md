@@ -22,7 +22,7 @@ Or install it yourself as:
 
 ## Usage
 
-You can check for errors manually at any time.
+You can check for errors manually at any time. The following code will select from every view in the `doublecheck` schema and `check_result` will only be valid if no rows are returned from any view.
 
 ```ruby
 doublecheck = DoublecheckView::Doublecheck.new
