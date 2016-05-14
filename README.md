@@ -56,7 +56,7 @@ domains, it can be easy to accidently setup the database in an invalid state
 which can render the test unreliable. Examining doublecheck views after every
 test can detect bad test setup.
 
-For the Ruby language, the doublecheck_view gem encapsulates this pattern. For
+For the Ruby language, the [doublecheck_view](https://github.com/jackc/doublecheck/tree/master/ruby/doublecheck_view) gem encapsulates this pattern. For
 other languages, it is simply a matter of hooking into the test runner's after
 test functionality and checking that all doublecheck views have 0 rows.
 
@@ -77,10 +77,6 @@ go get github.com/jackc/doublecheck/cmd/doublecheck
 
 Using your preferred migration system or by hand in psql create the schema
 `doublecheck`.
-
-```
-psql yourdatabase
-```
 
 ```sql
 create schema doublecheck;

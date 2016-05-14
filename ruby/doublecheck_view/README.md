@@ -1,4 +1,4 @@
-# Doublecheck Test
+# Doublecheck View
 
 doublecheck_view is a Ruby gem that makes it easy to validate doublecheck views
 during automated tests. See https://github.com/jackc/doublecheck for more

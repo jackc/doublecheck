@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["jack@jackchristensen.com"]
 
   spec.summary       = %q{Test doublecheck views with ActiveRecord}
-  spec.homepage      = "TODO: Put your gem's website or public repo URL here."
+  spec.homepage      = "https://github.com/jackc/doublecheck/tree/master/ruby/doublecheck_view"
   spec.license       = "MIT"
 
   # Prevent pushing this gem to RubyGems.org by setting 'allowed_push_host', or
