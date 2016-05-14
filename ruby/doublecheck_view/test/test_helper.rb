@@ -1,5 +1,5 @@
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
-require 'doublecheck_test'
+require 'doublecheck_view'
 
 require 'yaml'
 require 'active_record'

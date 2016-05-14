@@ -1,4 +1,4 @@
-module DoublecheckTest
+module DoublecheckView
   class ViewResult
     attr_reader :name, :rows
 
@@ -20,7 +20,7 @@ module DoublecheckTest
     end
 
     def valid?
-      view_results.all? &:valid?
+      view_results.all?(&:valid?)
     end
 
     def errors

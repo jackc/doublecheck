@@ -1,11 +1,11 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'doublecheck_test/version'
+require 'doublecheck_view/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "doublecheck_test"
-  spec.version       = DoublecheckTest::VERSION
+  spec.name          = "doublecheck_view"
+  spec.version       = DoublecheckView::VERSION
   spec.authors       = ["Jack Christensen"]
   spec.email         = ["jack@jackchristensen.com"]
 
