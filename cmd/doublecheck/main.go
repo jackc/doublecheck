@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ type Config struct {
 	ConnPoolConfig pgx.ConnPoolConfig
 	Schema         string
 	Quiet          bool
+	Format         string
 }
 
 var cliOptions struct {
@@ -26,7 +28,8 @@ var cliOptions struct {
 	database string
 	schema   string
 
-	quiet bool
+	quiet  bool
+	format string
 }
 
 func main() {
@@ -51,6 +54,7 @@ func main() {
 		Run:   Check,
 	}
 	addConfigFlagsToCommand(cmdCheck)
+	cmdCheck.Flags().StringVarP(&cliOptions.format, "format", "", "", "format (text or json)")
 	cmdCheck.Flags().BoolVarP(&cliOptions.quiet, "quiet", "", false, "only print output if error found")
 
 	rootCmd := &cobra.Command{Use: "doublecheck", Short: "doublecheck - data validator"}
@@ -164,7 +168,14 @@ func Check(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	formatter := doublecheck.NewJSONFormatter(os.Stdout)
+	var formatter doublecheck.Formatter
+	switch config.Format {
+	case "text":
+		formatter = doublecheck.NewTextFormatter(os.Stdout)
+	case "json":
+		formatter = doublecheck.NewJSONFormatter(os.Stdout)
+	}
+
 	err = formatter.Format(result)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to format results:\n  %v\n", err)
@@ -173,7 +184,7 @@ func Check(cmd *cobra.Command, args []string) {
 }
 
 func LoadConfig() (*Config, error) {
-	config := &Config{}
+	config := &Config{Format: "json"}
 	if connConfig, err := extractConfig(); err == nil {
 		config.ConnPoolConfig.ConnConfig = connConfig
 	} else {
@@ -182,7 +193,11 @@ func LoadConfig() (*Config, error) {
 
 	appendConfigFromCLIArgs(config)
 
-	config.Quiet = cliOptions.quiet
+	switch config.Format {
+	case "text", "json":
+	default:
+		return nil, errors.New("invalid format")
+	}
 
 	return config, nil
 }
@@ -202,5 +217,11 @@ func appendConfigFromCLIArgs(config *Config) {
 	}
 	if cliOptions.password != "" {
 		config.ConnPoolConfig.Password = cliOptions.password
+	}
+
+	config.Quiet = cliOptions.quiet
+
+	if cliOptions.format != "" {
+		config.Format = cliOptions.format
 	}
 }
