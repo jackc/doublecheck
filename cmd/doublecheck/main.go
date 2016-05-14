@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const VERSION = "0.0.1"
+const VERSION = "0.1.0"
 
 type Config struct {
 	ConnPoolConfig pgx.ConnPoolConfig
