@@ -25,7 +25,7 @@ database layer would be stored procedures to regulate access to the `players`
 and `teams` tables or constraint triggers on `teams` and `players` that would
 check if the change is allowed. Both of these techniques are imperative rather
 than declarative validation. They require knowledge of how to write in a
-database procedural language. They are also can be error-prone.
+database procedural language. They also can be error-prone.
 
 An alternative is to use a view that detects invalid data. The maximum team size
 constraint can easily be expressed in a view.
@@ -48,12 +48,12 @@ detect them quickly. The data can then be corrected and the application bug that
 created the invalid data can be fixed. The `doublecheck` command line tool makes
 this easy.
 
-The next place that using doublecheck views can be helpful is while after every
+The next place that using doublecheck views can be helpful is after every
 test case that integrates with the database. This can detect application errors
 before they get to production. Also, it is common for the beginning of a test to
 setup the database with initial data needed for the test. In complicated
 domains, it can be easy to accidently setup the database in an invalid state
-which can render the test unreliable. Examining doublecheck views after every
+which can render the test unreliable. Examining doublecheck views before every
 test can detect bad test setup.
 
 For the Ruby language, the
