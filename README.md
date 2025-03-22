@@ -71,10 +71,10 @@ ensure the view was empty or it would raise an exception.
 
 ## Usage
 
-Install the doublecheck command line tool with `go get`.
+Install the doublecheck command line tool with `go install`.
 
 ```
-go get github.com/jackc/doublecheck/cmd/doublecheck
+go install github.com/jackc/doublecheck/cmd/doublecheck@latest
 ```
 
 Using your preferred migration system or by hand in psql create the schema
