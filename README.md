@@ -142,7 +142,7 @@ standard PG* environment variables.
 
 ```
 createdb doublecheck_test
-psql -f setup.sql doublecheck_test
+psql --no-psqlrc -f setup.sql doublecheck_test
 go test
 ```
 
