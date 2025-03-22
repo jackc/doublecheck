@@ -1,22 +1,24 @@
 package doublecheck
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Config struct {
-	ConnPool   *pgx.ConnPool
+	Conn       *pgx.Conn
 	SchemaName string
 }
 
 type DoubleCheck struct {
 	schemaName string
 	views      []string
-	pool       *pgx.ConnPool
+	conn       *pgx.Conn
 }
 
 type CheckResult struct {
@@ -39,10 +41,10 @@ type ViewResult struct {
 func New(config *Config) (*DoubleCheck, error) {
 	var dc DoubleCheck
 
-	if config.ConnPool == nil {
-		return nil, errors.New("config.ConnPool cannot be null")
+	if config.Conn == nil {
+		return nil, errors.New("config.Conn cannot be null")
 	}
-	dc.pool = config.ConnPool
+	dc.conn = config.Conn
 
 	dc.schemaName = config.SchemaName
 	if dc.schemaName == "" {
@@ -61,7 +63,7 @@ func New(config *Config) (*DoubleCheck, error) {
 const getViewsSQL = `select table_name from information_schema.views where table_schema=$1 order by 1`
 
 func (dc *DoubleCheck) getViews() ([]string, error) {
-	rows, err := dc.pool.Query(getViewsSQL, dc.schemaName)
+	rows, err := dc.conn.Query(context.Background(), getViewsSQL, dc.schemaName)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +96,7 @@ func (dc *DoubleCheck) Views() []string {
 
 func (dc *DoubleCheck) Check(viewNames []string) (*CheckResult, error) {
 	var database, user string
-	if err := dc.pool.QueryRow("select current_database(), current_user").Scan(&database, &user); err != nil {
+	if err := dc.conn.QueryRow(context.Background(), "select current_database(), current_user").Scan(&database, &user); err != nil {
 		return nil, err
 	}
 
@@ -138,7 +140,7 @@ func (dc *DoubleCheck) checkView(viewName string) (*ViewResult, error) {
 		quoteIdentifier(viewName),
 	)
 
-	rows, err := dc.pool.Query(sql)
+	rows, err := dc.conn.Query(context.Background(), sql)
 	if err != nil {
 		return nil, err
 	}

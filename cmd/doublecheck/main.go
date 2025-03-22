@@ -1,23 +1,23 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/jackc/doublecheck"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cobra"
 )
 
 const VERSION = "0.2.0"
 
 type Config struct {
-	ConnPoolConfig pgx.ConnPoolConfig
-	Schema         string
-	Quiet          bool
-	Format         string
+	ConnConfig *pgx.ConnConfig
+	Schema     string
+	Quiet      bool
+	Format     string
 }
 
 var cliOptions struct {
@@ -64,46 +64,6 @@ func main() {
 	rootCmd.Execute()
 }
 
-func extractConfig() (pgx.ConnConfig, error) {
-	config, err := pgx.ParseEnvLibpq()
-	if err != nil {
-		return config, err
-	}
-
-	if config.Host == "" {
-		config.Host = findSocketPath()
-	}
-	if config.Host == "" {
-		config.Host = "localhost"
-	}
-
-	if config.User == "" {
-		config.User = os.Getenv("USER")
-	}
-
-	if config.Database == "" {
-		config.Database = config.User
-	}
-
-	return config, nil
-}
-
-func findSocketPath() string {
-	possiblePaths := []string{
-		"/tmp",                // Standard location and homebrew
-		"/var/run/postgresql", // Debian / Ubuntu
-	}
-
-	for _, path := range possiblePaths {
-		matches, _ := filepath.Glob(fmt.Sprintf("%s/.s.PGSQL*", path))
-		if len(matches) > 0 {
-			return path
-		}
-	}
-
-	return ""
-}
-
 func addConfigFlagsToCommand(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&cliOptions.host, "host", "", "", "database host")
 	cmd.Flags().Uint16VarP(&cliOptions.port, "port", "", 0, "database port")
@@ -120,14 +80,14 @@ func List(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	pool, err := pgx.NewConnPool(config.ConnPoolConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), config.ConnConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to PostgreSQL:\n  %v\n", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	defer conn.Close(context.Background())
 
-	dc, err := doublecheck.New(&doublecheck.Config{ConnPool: pool, SchemaName: config.Schema})
+	dc, err := doublecheck.New(&doublecheck.Config{Conn: conn, SchemaName: config.Schema})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to initialize doublecheck:\n  %v\n", err)
 		os.Exit(1)
@@ -145,14 +105,14 @@ func Check(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	pool, err := pgx.NewConnPool(config.ConnPoolConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), config.ConnConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to PostgreSQL:\n  %v\n", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	defer conn.Close(context.Background())
 
-	dc, err := doublecheck.New(&doublecheck.Config{ConnPool: pool, SchemaName: config.Schema})
+	dc, err := doublecheck.New(&doublecheck.Config{Conn: conn, SchemaName: config.Schema})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to initialize doublecheck:\n  %v\n", err)
 		os.Exit(1)
@@ -185,8 +145,8 @@ func Check(cmd *cobra.Command, args []string) {
 
 func LoadConfig() (*Config, error) {
 	config := &Config{Format: "json"}
-	if connConfig, err := extractConfig(); err == nil {
-		config.ConnPoolConfig.ConnConfig = connConfig
+	if connConfig, err := pgx.ParseConfig(""); err == nil {
+		config.ConnConfig = connConfig
 	} else {
 		return nil, err
 	}
@@ -204,19 +164,19 @@ func LoadConfig() (*Config, error) {
 
 func appendConfigFromCLIArgs(config *Config) {
 	if cliOptions.host != "" {
-		config.ConnPoolConfig.Host = cliOptions.host
+		config.ConnConfig.Host = cliOptions.host
 	}
 	if cliOptions.port != 0 {
-		config.ConnPoolConfig.Port = cliOptions.port
+		config.ConnConfig.Port = cliOptions.port
 	}
 	if cliOptions.database != "" {
-		config.ConnPoolConfig.Database = cliOptions.database
+		config.ConnConfig.Database = cliOptions.database
 	}
 	if cliOptions.user != "" {
-		config.ConnPoolConfig.User = cliOptions.user
+		config.ConnConfig.User = cliOptions.user
 	}
 	if cliOptions.password != "" {
-		config.ConnPoolConfig.Password = cliOptions.password
+		config.ConnConfig.Password = cliOptions.password
 	}
 
 	config.Quiet = cliOptions.quiet

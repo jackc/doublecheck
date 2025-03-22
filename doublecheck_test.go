@@ -1,19 +1,19 @@
 package doublecheck_test
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/jackc/doublecheck"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
 )
 
 var (
-	pool *pgx.ConnPool
+	conn *pgx.Conn
 )
 
 func TestMain(m *testing.M) {
@@ -28,12 +28,12 @@ func TestMain(m *testing.M) {
 }
 
 func setup() error {
-	config, err := extractConfig()
+	config, err := pgx.ParseConfig("dbname=doublecheck_test")
 	if err != nil {
 		return err
 	}
 
-	pool, err = pgx.NewConnPool(config)
+	conn, err = pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
 		return err
 	}
@@ -41,48 +41,8 @@ func setup() error {
 	return nil
 }
 
-func extractConfig() (config pgx.ConnPoolConfig, err error) {
-	config.ConnConfig, err = pgx.ParseEnvLibpq()
-	if err != nil {
-		return config, err
-	}
-
-	if config.Host == "" {
-		config.Host = findSocketPath()
-	}
-	if config.Host == "" {
-		config.Host = "localhost"
-	}
-
-	if config.User == "" {
-		config.User = os.Getenv("USER")
-	}
-
-	if config.Database == "" {
-		config.Database = "doublecheck_test"
-	}
-
-	return config, nil
-}
-
-func findSocketPath() string {
-	possiblePaths := []string{
-		"/tmp",                // Standard location and homebrew
-		"/var/run/postgresql", // Debian / Ubuntu
-	}
-
-	for _, path := range possiblePaths {
-		matches, _ := filepath.Glob(fmt.Sprintf("%s/.s.PGSQL*", path))
-		if len(matches) > 0 {
-			return path
-		}
-	}
-
-	return ""
-}
-
 func TestDoubleCheckViews(t *testing.T) {
-	dc, err := doublecheck.New(&doublecheck.Config{ConnPool: pool})
+	dc, err := doublecheck.New(&doublecheck.Config{Conn: conn})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +54,7 @@ func TestDoubleCheckViews(t *testing.T) {
 }
 
 func TestDoubleCheckCheck(t *testing.T) {
-	dc, err := doublecheck.New(&doublecheck.Config{ConnPool: pool})
+	dc, err := doublecheck.New(&doublecheck.Config{Conn: conn})
 	if err != nil {
 		t.Fatal(err)
 	}
