@@ -1,0 +1,6 @@
+{
+	"name": "doublecheck",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+}
