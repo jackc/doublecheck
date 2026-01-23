@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const VERSION = "0.3.0"
+var version = "dev"
 
 type Config struct {
 	ConnConfig *pgx.ConnConfig
@@ -37,7 +37,7 @@ func main() {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("doublecheck v%s\n", VERSION)
+			fmt.Printf("doublecheck v%s\n", version)
 		},
 	}
 
